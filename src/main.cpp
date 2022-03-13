@@ -8,6 +8,9 @@
  */
 #include "FastLED.h"
 
+void ambiINT();
+void whiteINT();
+
 //INFOS RUBAN AMBILIGHT
 #define AMBI_LEDS 120
 #define AMBI_PIN 5
