@@ -15,15 +15,21 @@ void whiteINT();
 #define AMBI_LEDS 120
 #define AMBI_PIN 5
 #define AMBI_INT 2
-byte ambi_on = LOW;
+volatile byte ambi_on = LOW;
+volatile byte ambi_old = LOW;
 
 //INFOS RUBAN BLANC ICI
 #define WHITE_LEDS 30
 #define WHITE_PIN 10
 #define WHITE_INT 3
-byte white_on = LOW;
+volatile byte white_on = LOW;
+volatile byte white_old = LOW;
 
 #define NUM_LEDS AMBI_LEDS+WHITE_LEDS
+
+unsigned long lastDebounceTimeWHITE = 0;
+unsigned long lastDebounceTimeAMBI = 0;
+unsigned long debounceDelay = 100;
 
 // Baudrate, higher rate allows faster refresh rate and more LEDs (defined in /etc/boblight.conf)
 #define serialRate 115200
@@ -38,15 +44,24 @@ void setup() {
   // Use NEOPIXEL to keep true colors
   FastLED.addLeds<NEOPIXEL, AMBI_PIN>(leds, 0, AMBI_LEDS);
   FastLED.addLeds<NEOPIXEL, WHITE_PIN>(leds, AMBI_LEDS, WHITE_LEDS);
-  
+  Serial.begin(serialRate);
+  Serial.println("SETUP LED OK");
+
   pinMode(WHITE_INT, INPUT_PULLUP);
   pinMode(AMBI_INT, INPUT_PULLUP);
 
+  Serial.println("INPUT MODE OK");
+
   whiteINT();
+
+  Serial.println("FIRST WHITE OK");
   ambiINT();
+  Serial.println("FIRST AMBI OK");
 
   attachInterrupt(digitalPinToInterrupt(WHITE_INT), whiteINT, CHANGE);
   attachInterrupt(digitalPinToInterrupt(AMBI_INT), ambiINT, CHANGE);
+
+  Serial.println("ATTACH INTERRUPT OK");
 }
 
 void loop() { 
@@ -101,11 +116,24 @@ void loop() {
 
 void whiteINT()
 {
-  white_on = digitalRead(WHITE_INT); // LOW = ON / HIGH = OFF
+  byte reading = digitalRead(WHITE_INT); // LOW = ON / HIGH = OFF
+  if(reading != white_old)
+  {
+    lastDebounceTimeWHITE = millis();
+  }
+  if ((millis() - lastDebounceTimeWHITE) >= debounceDelay)
+  {
+    if(reading != white_on)
+    {
+      white_on = reading;
+    }
+  }
+  white_old = reading;
   if(!white_on)// LOW donc ON
   {
     for(int i = AMBI_LEDS; i < NUM_LEDS; i++)
     {
+      Serial.println("ON");
       leds[i] = CRGB::White;
     }
   }else// HIGH donc OFF
@@ -113,6 +141,7 @@ void whiteINT()
     for(int i = AMBI_LEDS; i < NUM_LEDS; i++)
     {
       leds[i] = CRGB::Black;
+      Serial.println("OFF");
     }  
   }
   FastLED.show();
@@ -128,10 +157,10 @@ void ambiINT()
       leds[i] = CRGB::Black;
     }
     FastLED.show();
-    Serial.end();
+    //Serial.end();
   }else // LOW donc ON
   {
-    Serial.begin(serialRate);
+    //Serial.begin(serialRate);
     // Send "Magic Word" string to host
     Serial.print("Ada\n");
   }  
