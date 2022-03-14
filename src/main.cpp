@@ -38,33 +38,34 @@ unsigned long debounceDelay = 100;
 uint8_t prefix[] = {'A', 'd', 'a'}, hi, lo, chk, i;
 
 // Initialise LED-array
-CRGB leds[AMBI_LEDS + WHITE_LEDS];
+CRGB leds[NUM_LEDS];
 
 void setup() {
-  // Use NEOPIXEL to keep true colors
-  FastLED.addLeds<NEOPIXEL, AMBI_PIN>(leds, 0, AMBI_LEDS);
-  FastLED.addLeds<NEOPIXEL, WHITE_PIN>(leds, AMBI_LEDS, WHITE_LEDS);
-  Serial.begin(serialRate);
-  Serial.println("SETUP LED OK");
 
   pinMode(WHITE_INT, INPUT_PULLUP);
   pinMode(AMBI_INT, INPUT_PULLUP);
+  delay(100);
 
-  Serial.println("INPUT MODE OK");
+  white_on = digitalRead(WHITE_INT);
+  ambi_on = digitalRead(AMBI_INT);
+  white_old = white_on;
+  ambi_old = ambi_on;
 
-  whiteINT();
+  // Use NEOPIXEL to keep true colors
+  FastLED.addLeds<NEOPIXEL, AMBI_PIN>(leds, 0, AMBI_LEDS);
+  FastLED.addLeds<NEOPIXEL, WHITE_PIN>(leds, AMBI_LEDS, WHITE_LEDS);
 
-  Serial.println("FIRST WHITE OK");
-  ambiINT();
-  Serial.println("FIRST AMBI OK");
+  Serial.begin(serialRate);
 
   attachInterrupt(digitalPinToInterrupt(WHITE_INT), whiteINT, CHANGE);
   attachInterrupt(digitalPinToInterrupt(AMBI_INT), ambiINT, CHANGE);
-
-  Serial.println("ATTACH INTERRUPT OK");
+  Serial.println(white_on);
+  Serial.println("OK");
 }
 
 void loop() { 
+
+  FastLED.show();
 
   if(!ambi_on)
   {
@@ -106,45 +107,33 @@ void loop() {
       leds[i].g = g;
       leds[i].b = b;
     }
-    // Shows new values
-    FastLED.show();
-  }else
-  {
-    delay(100);
   }
 }
 
 void whiteINT()
 {
-  byte reading = digitalRead(WHITE_INT); // LOW = ON / HIGH = OFF
-  if(reading != white_old)
+  if(millis() - lastDebounceTimeWHITE >= debounceDelay)
   {
-    lastDebounceTimeWHITE = millis();
-  }
-  if ((millis() - lastDebounceTimeWHITE) >= debounceDelay)
-  {
-    if(reading != white_on)
-    {
-      white_on = reading;
-    }
-  }
-  white_old = reading;
-  if(!white_on)// LOW donc ON
-  {
-    for(int i = AMBI_LEDS; i < NUM_LEDS; i++)
+    white_on = !white_on;
+    if(!white_on)// LOW donc ON
     {
       Serial.println("ON");
-      leds[i] = CRGB::White;
-    }
-  }else// HIGH donc OFF
-  {
-    for(int i = AMBI_LEDS; i < NUM_LEDS; i++)
+      for(int i = AMBI_LEDS; i < NUM_LEDS; i++)
+      {
+        leds[i] = CRGB::White;
+      }
+    }else// HIGH donc OFF
     {
-      leds[i] = CRGB::Black;
       Serial.println("OFF");
-    }  
+      for(int i = AMBI_LEDS; i < NUM_LEDS; i++)
+      {
+        leds[i] = CRGB::Black;
+      }  
+    }
+    lastDebounceTimeWHITE = millis();
+    Serial.println(lastDebounceTimeWHITE);
+    Serial.println("---------------------");
   }
-  FastLED.show();
 }
 
 void ambiINT()
@@ -156,7 +145,6 @@ void ambiINT()
     {
       leds[i] = CRGB::Black;
     }
-    FastLED.show();
     //Serial.end();
   }else // LOW donc ON
   {
