@@ -29,7 +29,7 @@ volatile byte white_old = LOW;
 
 unsigned long lastDebounceTimeWHITE = 0;
 unsigned long lastDebounceTimeAMBI = 0;
-unsigned long debounceDelay = 100;
+unsigned long debounceDelay = 200;
 
 // Baudrate, higher rate allows faster refresh rate and more LEDs (defined in /etc/boblight.conf)
 #define serialRate 115200
@@ -55,19 +55,15 @@ void setup() {
   FastLED.addLeds<NEOPIXEL, AMBI_PIN>(leds, 0, AMBI_LEDS);
   FastLED.addLeds<NEOPIXEL, WHITE_PIN>(leds, AMBI_LEDS, WHITE_LEDS);
 
-  Serial.begin(serialRate);
-
   attachInterrupt(digitalPinToInterrupt(WHITE_INT), whiteINT, CHANGE);
   attachInterrupt(digitalPinToInterrupt(AMBI_INT), ambiINT, CHANGE);
-  Serial.println(white_on);
-  Serial.println("OK");
 }
 
 void loop() { 
 
   FastLED.show();
 
-  if(!ambi_on)
+  if(!ambi_on) // LOW donc ON
   {
     // Wait for first byte of Magic Word
     for(i = 0; i < sizeof prefix; ++i) {
@@ -117,39 +113,39 @@ void whiteINT()
     white_on = !white_on;
     if(!white_on)// LOW donc ON
     {
-      Serial.println("ON");
       for(int i = AMBI_LEDS; i < NUM_LEDS; i++)
       {
         leds[i] = CRGB::White;
       }
     }else// HIGH donc OFF
     {
-      Serial.println("OFF");
       for(int i = AMBI_LEDS; i < NUM_LEDS; i++)
       {
         leds[i] = CRGB::Black;
       }  
     }
     lastDebounceTimeWHITE = millis();
-    Serial.println(lastDebounceTimeWHITE);
-    Serial.println("---------------------");
   }
 }
 
 void ambiINT()
 {
-  ambi_on = digitalRead(AMBI_INT);
-  if(ambi_on) // HIGH donc OFF
+  if(millis() - lastDebounceTimeAMBI >= debounceDelay)
   {
-    for(int i = 0; i < AMBI_LEDS; i++)
+    ambi_on = !ambi_on;
+    if(ambi_on) //HIGH donc OFF
     {
-      leds[i] = CRGB::Black;
+      for(int i=0; i < AMBI_LEDS; i++)
+      {
+        leds[i] = CRGB::Black;
+      }
+      Serial.end();
+    }else{ // LOW donc ON
+    
+      Serial.begin(115200);
+      // Send "Magic Word" string to host
+      Serial.print("Ada\n");
     }
-    //Serial.end();
-  }else // LOW donc ON
-  {
-    //Serial.begin(serialRate);
-    // Send "Magic Word" string to host
-    Serial.print("Ada\n");
-  }  
+    lastDebounceTimeAMBI = millis();
+  }
 }
