@@ -57,6 +57,9 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(WHITE_INT), whiteINT, CHANGE);
   attachInterrupt(digitalPinToInterrupt(AMBI_INT), ambiINT, CHANGE);
+
+  Serial.begin(115200);
+  Serial.print("Ada\n");
 }
 
 void loop() { 
@@ -103,6 +106,12 @@ void loop() {
       leds[i].g = g;
       leds[i].b = b;
     }
+  }else
+  {
+    for(int i=0; i < AMBI_LEDS; i++)
+    {
+      leds[i] = CRGB::Black;
+    }
   }
 }
 
@@ -133,19 +142,6 @@ void ambiINT()
   if(millis() - lastDebounceTimeAMBI >= debounceDelay)
   {
     ambi_on = !ambi_on;
-    if(ambi_on) //HIGH donc OFF
-    {
-      for(int i=0; i < AMBI_LEDS; i++)
-      {
-        leds[i] = CRGB::Black;
-      }
-      Serial.end();
-    }else{ // LOW donc ON
-    
-      Serial.begin(115200);
-      // Send "Magic Word" string to host
-      Serial.print("Ada\n");
-    }
     lastDebounceTimeAMBI = millis();
   }
 }
